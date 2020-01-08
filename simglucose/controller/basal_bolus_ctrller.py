@@ -36,8 +36,10 @@ class BBController(Controller):
             q = self.quest[self.quest.Name.str.match(name)]
             params = self.patient_params[self.patient_params.Name.str.match(
                 name)]
-            u2ss = np.asscalar(params.u2ss.values)
-            BW = np.asscalar(params.BW.values)
+            # u2ss = np.asscalar(params.u2ss.values)
+            # BW = np.asscalar(params.BW.values)
+            u2ss = np.ndarray.item(params.u2ss.values)
+            BW = np.ndarray.item(params.BW.values)
         else:
             q = pd.DataFrame([['Average', 1 / 15, 1 / 50, 50, 30]],
                              columns=['Name', 'CR', 'CF', 'TDI', 'Age'])
@@ -48,7 +50,7 @@ class BBController(Controller):
         if meal > 0:
             logger.info('Calculating bolus ...')
             logger.debug('glucose = {}'.format(glucose))
-            bolus = np.asscalar(meal / q.CR.values + (glucose > 150)
+            bolus = np.ndarray.item(meal / q.CR.values + (glucose > 150)
                                 * (glucose - self.target) / q.CF.values)
         else:
             bolus = 0
