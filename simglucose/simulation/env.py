@@ -1,10 +1,14 @@
 from simglucose.patient.t1dpatient import Action
 from simglucose.analysis.risk import risk_index
 import pandas as pd
+import numpy as np
+import gym
 from datetime import timedelta
 import logging
 from collections import namedtuple
+from collections import deque
 from simglucose.simulation.rendering import Viewer
+from gym import spaces
 
 try:
     from rllab.envs.base import Step
@@ -20,7 +24,7 @@ except ImportError:
         return _Step(observation, reward, done, kwargs)
 
 
-Observation = namedtuple('Observation', ['CGM'])
+Observation = namedtuple('Observation', ['CGM', 'CHO', 'INSULIN'])
 logger = logging.getLogger(__name__)
 
 
@@ -101,8 +105,21 @@ class T1DSimEnv(object):
         BG_last_hour = self.CGM_hist[-window_size:]
         reward = reward_fun(BG_last_hour)
         done = BG < 70 or BG > 350
-        obs = Observation(CGM=CGM)
 
+        self.CGM_obs.append(CGM)
+        self.CHO_obs.append(CHO)
+        self.INS_obs.append(insulin[0])
+        INS_array = np.array(self.INS_obs)
+        CGM_array = np.array(self.CGM_obs)
+
+
+        #
+        # Observation is a Box shape(3,20) of CGM, insulin and CHO data for past hour
+        #
+        # obs = Observation(CGM=CGM, CHO=CHO, INSULIN=insulin)
+        # obs = np.array([self.CGM_obs, self.INS_obs, self.CHO_obs]).reshape(1,-1)
+        obs = np.concatenate([self.CGM_obs,self.INS_obs,self.CHO_obs])
+        #
         return Step(
             observation=obs,
             reward=reward,
@@ -128,6 +145,11 @@ class T1DSimEnv(object):
         self.HBGI_hist = [HBGI]
         self.CHO_hist = []
         self.insulin_hist = []
+        # Add queues for training
+        que_size = 20
+        self.CGM_obs = deque([0] * que_size, maxlen=que_size)
+        self.CHO_obs = deque([0] * que_size, maxlen=que_size)
+        self.INS_obs = deque([0] * que_size, maxlen=que_size)
 
     def reset(self):
         self.patient.reset()
@@ -135,8 +157,13 @@ class T1DSimEnv(object):
         self.pump.reset()
         self.scenario.reset()
         self._reset()
+        CHO=0
+        insulin=0
         CGM = self.sensor.measure(self.patient)
-        obs = Observation(CGM=CGM)
+        self.CGM_obs.append(CGM)
+        obs = np.concatenate([self.CGM_obs,self.INS_obs,self.CHO_obs])
+
+#        obs = Observation(CGM=CGM,CHO=CHO,INSULIN=insulin)
         return Step(
             observation=obs,
             reward=0,

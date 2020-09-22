@@ -93,4 +93,4 @@ class T1DSimEnv(gym.Env):
 
     @property
     def observation_space(self):
-        return spaces.Box(low=0, high=np.inf, shape=(1,))
+        return spaces.Box(low=0, high=np.inf, shape=(3,20))
